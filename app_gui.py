@@ -1,49 +1,57 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-from PIL import Image, ImageTk  # Requires: pip install pillow
+from tkinter import ttk, messagebox, scrolledtext
+from PIL import Image, ImageTk
 import pandas as pd
 import joblib
+import datetime
 
-# --- THEME & COLORS ---
+# --- THEME CONFIGURATION ---
 COLORS = {
-    "bg_dark": "#0f172a",  # Deep Navy (Background)
-    "bg_panel": "#1e293b",  # Slate Grey (Panels)
-    "text_light": "#f8fafc",  # Off-white
-    "text_dim": "#94a3b8",  # Muted Grey
-    "accent": "#3b82f6",  # Royal Blue
+    "bg_dark": "#0f172a",  # Deep Navy (Main BG)
+    "bg_panel": "#1e293b",  # Lighter Slate (Panels)
+    "bg_input": "#334155",  # Input field background
+    "text_light": "#f8fafc",  # White text
+    "text_dim": "#94a3b8",  # Grey text
+    "accent": "#6366f1",  # Indigo (Sophisticated Blue/Purple)
+    "accent_hover": "#4f46e5",  # Darker Indigo
     "danger": "#ef4444",  # Red
-    "success": "#22c55e",  # Green
+    "success": "#10b981",  # Emerald Green
+    "log_bg": "#000000",  # Black for terminal
+    "log_text": "#00ff00"  # Hacker Green
 }
 
-# Increased font sizes for "Bigger" feel
-FONT_HEADER = ("Helvetica", 24, "bold")
-FONT_BODY = ("Helvetica", 12)  # Slightly larger for inputs
-FONT_RESULT = ("Helvetica", 16, "bold")  # NEW: Very bold for the %
+FONTS = {
+    "header": ("Segoe UI", 26, "bold"),
+    "sub": ("Segoe UI", 12, "bold"),
+    "body": ("Segoe UI", 11),
+    "result": ("Segoe UI", 18, "bold")
+}
 
 
 class BankApp(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        # 1. SETUP WINDOW
-        self.title("Dino Bank System")
+        # 1. WINDOW SETUP
+        self.title("Dino Bank - AI Admin Terminal")
         self.configure(bg=COLORS["bg_dark"])
         self.attributes('-fullscreen', True)
         self.bind("<Escape>", self.exit_app)
 
-        # 2. STYLE CONFIGURATION (Make Dropdowns Bigger)
+        # 2. STYLING (The Sophisticated Look)
         self.style = ttk.Style()
-        self.style.theme_use('clam')  # 'clam' allows more custom coloring than default
+        self.style.theme_use('clam')
 
-        # Configure the Dropdown (Combobox) to be tall and dark
+        # Dropdown Style
         self.style.configure("TCombobox",
-                             fieldbackground=COLORS["bg_panel"],
+                             fieldbackground=COLORS["bg_input"],
                              background=COLORS["accent"],
-                             foreground="black",
-                             arrowsize=20,  # Bigger arrow
-                             padding=10)  # Taller box (Internal padding)
+                             foreground="white",  # Text color
+                             arrowsize=20)
+        self.style.map('TCombobox', fieldbackground=[('readonly', COLORS["bg_input"])],
+                       selectbackground=[('readonly', COLORS["bg_input"])], selectforeground=[('readonly', 'white')])
 
-        # 3. LOAD AI BRAIN
+        # 3. LOAD BRAINS
         self.model = None
         self.scaler = None
         try:
@@ -52,11 +60,10 @@ class BankApp(tk.Tk):
         except:
             pass
 
-            # 4. START AT LOGIN PAGE
+            # 4. START
         self.show_login_screen()
 
     def load_image(self, path, size):
-        """Helper to safely load images"""
         try:
             img = Image.open(path)
             img = img.resize(size, Image.Resampling.LANCZOS)
@@ -64,240 +71,295 @@ class BankApp(tk.Tk):
         except:
             return None
 
-    # ==========================================
-    # 🔒 SCREEN 1: LOGIN PAGE
+    # --- LOGGING SYSTEM ---
+    def log(self, message):
+        """Writes to the on-screen terminal"""
+        if hasattr(self, 'terminal'):
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            self.terminal.configure(state='normal')
+            self.terminal.insert(tk.END, f"[{timestamp}] {message}\n")
+            self.terminal.see(tk.END)  # Auto-scroll
+            self.terminal.configure(state='disabled')
+        print(message)
+
+        # ==========================================
+
+    # 🔒 SCREEN 1: LOGIN
     # ==========================================
     def show_login_screen(self):
         self.login_frame = tk.Frame(self, bg=COLORS["bg_dark"])
         self.login_frame.pack(fill="both", expand=True)
 
-        # -- Left Side: Branding Panel --
-        banner_frame = tk.Frame(self.login_frame, bg=COLORS["bg_dark"], width=500)
-        banner_frame.pack(side="left", fill="both", expand=True)
+        # Left Panel (Branding)
+        left = tk.Frame(self.login_frame, bg=COLORS["bg_dark"], width=600)
+        left.pack(side="left", fill="both", expand=True)
+        content = tk.Frame(left, bg=COLORS["bg_dark"])
+        content.place(relx=0.5, rely=0.5, anchor="center")
 
-        left_content = tk.Frame(banner_frame, bg=COLORS["bg_dark"])
-        left_content.place(relx=0.5, rely=0.5, anchor="center")
-
-        # REBRANDING HERE
-        tk.Label(left_content, text="DINO", font=("Helvetica", 50, "bold"), bg=COLORS["bg_dark"],
-                 fg=COLORS["text_light"]).pack()
-        tk.Label(left_content, text="FINANCIAL SYSTEMS", font=("Helvetica", 18, "bold"), bg=COLORS["bg_dark"],
+        tk.Label(content, text="DINO", font=("Segoe UI", 60, "bold"), bg=COLORS["bg_dark"], fg="white").pack()
+        tk.Label(content, text="FINANCIAL INTELLIGENCE", font=("Segoe UI", 20), bg=COLORS["bg_dark"],
                  fg=COLORS["accent"]).pack(pady=10)
-        tk.Label(left_content, text="AI-Powered Risk Assessment", font=("Helvetica", 14), bg=COLORS["bg_dark"],
-                 fg=COLORS["text_dim"]).pack(pady=5)
 
-        # -- Right Side: Login Form --
-        form_area = tk.Frame(self.login_frame, bg=COLORS["bg_panel"], width=600)
-        form_area.pack(side="right", fill="both", expand=True)
+        # Right Panel (Login)
+        right = tk.Frame(self.login_frame, bg=COLORS["bg_panel"], width=500)
+        right.pack(side="right", fill="both", expand=True)
+        box = tk.Frame(right, bg=COLORS["bg_panel"])
+        box.place(relx=0.5, rely=0.5, anchor="center")
 
-        center_box = tk.Frame(form_area, bg=COLORS["bg_panel"])
-        center_box.place(relx=0.5, rely=0.5, anchor="center")
-
-        img_logo = self.load_image("banking.png", (100, 100))  # Slightly bigger logo
+        img_logo = self.load_image("banking.png", (80, 80))
         if img_logo:
-            lbl_logo = tk.Label(center_box, image=img_logo, bg=COLORS["bg_panel"])
-            lbl_logo.image = img_logo
-            lbl_logo.pack(pady=20)
+            lbl = tk.Label(box, image=img_logo, bg=COLORS["bg_panel"])
+            lbl.image = img_logo
+            lbl.pack(pady=20)
 
-        tk.Label(center_box, text="SECURE LOGIN", font=("Helvetica", 20, "bold"), bg=COLORS["bg_panel"],
-                 fg=COLORS["text_light"]).pack(pady=10)
+        tk.Label(box, text="ADMIN LOGIN", font=FONTS["header"], bg=COLORS["bg_panel"], fg="white").pack(pady=20)
 
-        # User Field
-        frm_user = tk.Frame(center_box, bg=COLORS["bg_panel"])
-        frm_user.pack(pady=10)
-        img_user = self.load_image("person.png", (30, 30))
-        if img_user:
-            lbl_u = tk.Label(frm_user, image=img_user, bg=COLORS["bg_panel"])
-            lbl_u.image = img_user
-            lbl_u.pack(side="left", padx=10)
-        self.entry_user = tk.Entry(frm_user, font=FONT_BODY, width=25, bg="white", fg="black", relief="flat", bd=5)
-        self.entry_user.pack(side="left", pady=5, ipady=3)  # ipady makes input taller
-        self.entry_user.insert(0, "admin")
+        # Inputs (CLEAN SLATE: Removed default text)
+        self.entry_user = self.create_login_entry(box, "person.png", "")
+        self.entry_pass = self.create_login_entry(box, "padlock.png", "", is_pass=True)
 
-        # Pass Field
-        frm_pass = tk.Frame(center_box, bg=COLORS["bg_panel"])
-        frm_pass.pack(pady=10)
-        img_lock = self.load_image("padlock.png", (25, 30))
-        if img_lock:
-            lbl_p = tk.Label(frm_pass, image=img_lock, bg=COLORS["bg_panel"])
-            lbl_p.image = img_lock
-            lbl_p.pack(side="left", padx=12)
-        self.entry_pass = tk.Entry(frm_pass, font=FONT_BODY, width=25, show="*", bg="white", fg="black", relief="flat",
-                                   bd=5)
-        self.entry_pass.pack(side="left", pady=5, ipady=3)
-        self.entry_pass.insert(0, "admin123")
+        btn = tk.Button(box, text="ACCESS TERMINAL", command=self.validate_login,
+                        bg=COLORS["accent"], fg="white", font=FONTS["sub"],
+                        relief="flat", padx=40, pady=10, cursor="hand2")
+        btn.pack(pady=30)
 
-        tk.Button(center_box, text="AUTHENTICATE", command=self.validate_login, bg=COLORS["accent"], fg="white",
-                  font=("Helvetica", 12, "bold"), width=20, cursor="hand2", pady=5).pack(pady=30)
+        # Quick hint for you (remove this line if you want it totally secret)
+        tk.Label(box, text="(Hint: admin / admin123)", bg=COLORS["bg_panel"], fg="#444").pack()
+
+    def create_login_entry(self, parent, icon_file, default_text, is_pass=False):
+        frame = tk.Frame(parent, bg=COLORS["bg_panel"])
+        frame.pack(pady=10)
+        img = self.load_image(icon_file, (24, 24))
+        if img:
+            lbl = tk.Label(frame, image=img, bg=COLORS["bg_panel"])
+            lbl.image = img
+            lbl.pack(side="left", padx=10)
+
+        entry = tk.Entry(frame, font=FONTS["body"], width=25, bg="white", relief="flat", show="*" if is_pass else "")
+        entry.pack(side="left", ipady=5)
+        # entry.insert(0, default_text)  <-- COMMENTED OUT DEFAULT TEXT
+        return entry
 
     def validate_login(self):
-        user = self.entry_user.get()
-        pwd = self.entry_pass.get()
-        if user == "admin" and pwd == "admin123":
+        if self.entry_user.get() == "admin" and self.entry_pass.get() == "admin123":
             self.login_frame.destroy()
             self.show_dashboard()
         else:
-            messagebox.showerror("Access Denied", "Invalid Credentials")
+            messagebox.showerror("Error", "Invalid Credentials")
 
     # ==========================================
-    # 🏦 SCREEN 2: MAIN DASHBOARD
+    # 🏦 SCREEN 2: DASHBOARD
     # ==========================================
     def show_dashboard(self):
         self.main_container = tk.Frame(self, bg=COLORS["bg_dark"])
-        self.main_container.pack(fill="both", expand=True, padx=40, pady=40)
-
+        self.main_container.pack(fill="both", expand=True, padx=30, pady=30)
         self.entries = {}
 
         # --- HEADER ---
         header = tk.Frame(self.main_container, bg=COLORS["bg_dark"])
         header.pack(fill="x", pady=(0, 20))
 
-        img_logo = self.load_image("banking.png", (50, 50))
-        if img_logo:
-            lbl = tk.Label(header, image=img_logo, bg=COLORS["bg_dark"])
-            lbl.image = img_logo
+        img = self.load_image("banking.png", (40, 40))
+        if img:
+            lbl = tk.Label(header, image=img, bg=COLORS["bg_dark"])
+            lbl.image = img
             lbl.pack(side="left", padx=10)
 
-        # REBRANDING HERE
-        tk.Label(header, text="DINO BANK AI TERMINAL", font=FONT_HEADER, bg=COLORS["bg_dark"],
-                 fg=COLORS["text_light"]).pack(side="left")
+        tk.Label(header, text="DINO BANK // ADMIN DASHBOARD", font=FONTS["header"], bg=COLORS["bg_dark"],
+                 fg="white").pack(side="left")
+        tk.Button(header, text="LOGOUT", command=self.exit_app, bg=COLORS["danger"], fg="white",
+                  font=("Segoe UI", 10, "bold"), bd=0, padx=20).pack(side="right")
 
-        tk.Button(header, text="LOGOUT X", command=self.exit_app, bg=COLORS["danger"], fg="white",
-                  font=("Helvetica", 10, "bold"), bd=0, padx=20, pady=8, cursor="hand2").pack(side="right")
-
-        # --- CONTENT SPLIT ---
+        # --- CONTENT AREA (Grid Layout) ---
         content = tk.Frame(self.main_container, bg=COLORS["bg_dark"])
         content.pack(fill="both", expand=True)
 
-        # LEFT: FORM
-        form_frame = tk.Frame(content, bg=COLORS["bg_panel"], padx=25, pady=25)
-        form_frame.pack(side="left", fill="both", expand=True, padx=(0, 25))
+        # LEFT COLUMN: INPUTS
+        left_col = tk.Frame(content, bg=COLORS["bg_panel"], padx=20, pady=20)
+        left_col.pack(side="left", fill="both", expand=True, padx=(0, 20))
 
-        self.input_grid = tk.Frame(form_frame, bg=COLORS["bg_panel"])
-        self.input_grid.pack(fill="x")
+        # Personal Group
+        self.create_group_label(left_col, "👤 PERSONAL DETAILS")
+        grid_personal = tk.Frame(left_col, bg=COLORS["bg_panel"])
+        grid_personal.pack(fill="x", pady=(0, 20))
+        self.add_input(grid_personal, 0, "Gender", ["Male", "Female"], "Married", ["No", "Yes"])
+        self.add_input(grid_personal, 1, "Dependents", ["0", "1", "2", "3+"], "Education", ["Graduate", "Not Graduate"])
+        self.add_input(grid_personal, 2, "Self Employed", ["No", "Yes"], "Property Area",
+                       ["Semiurban", "Urban", "Rural"])
 
-        # Add all inputs
-        self.add_row(0, "Gender", ["Male", "Female"], "Married", ["No", "Yes"])
-        self.add_row(1, "Dependents", ["0", "1", "2", "3+"], "Education", ["Graduate", "Not Graduate"])
-        self.add_row(2, "Self Employed", ["No", "Yes"], "Credit History", ["1.0 (Good)", "0.0 (Bad)"])
-        self.add_row(3, "Applicant Income", None, "Co-Applicant Income", None)
-        self.add_row(4, "Loan Amount", None, "Loan Term (Months)", None)
-        self.add_row(5, "Property Area", ["Semiurban", "Urban", "Rural"], None, None)
+        # Financial Group
+        self.create_group_label(left_col, "💰 FINANCIAL DATA")
+        grid_finance = tk.Frame(left_col, bg=COLORS["bg_panel"])
+        grid_finance.pack(fill="x")
+        self.add_input(grid_finance, 0, "Applicant Income", None, "Co-Applicant Income", None)
+        self.add_input(grid_finance, 1, "Loan Amount", None, "Loan Term (Months)", None)
+        self.add_input(grid_finance, 2, "Credit History", ["Good (All Debts Paid)", "Bad (Unpaid Debts)"], None, None)
 
-        # Defaults
-        self.entries["Applicant Income"].insert(0, "5000")
-        self.entries["Co-Applicant Income"].insert(0, "0")
-        self.entries["Loan Amount"].insert(0, "120")
-        self.entries["Loan Term (Months)"].insert(0, "360")
+        # Predict Button
+        tk.Button(left_col, text="RUN RISK ANALYSIS ⚡", command=self.run_logic,
+                  bg=COLORS["accent"], fg="white", font=("Segoe UI", 14, "bold"),
+                  relief="flat", pady=12, cursor="hand2").pack(fill="x", pady=20, side="bottom")
 
-        tk.Button(form_frame, text="RUN ANALYSIS", command=self.run_logic, bg=COLORS["accent"], fg="white",
-                  font=("Helvetica", 16, "bold"), pady=12, cursor="hand2").pack(fill="x", pady=25)
+        # RIGHT COLUMN: STATUS + LOGS
+        right_col = tk.Frame(content, bg=COLORS["bg_dark"], width=400)
+        right_col.pack(side="right", fill="y")
+        right_col.pack_propagate(False)
 
-        # RIGHT: STATUS
-        self.status_frame = tk.Frame(content, bg=COLORS["bg_panel"], width=350)
-        self.status_frame.pack(side="right", fill="y")
-        self.status_frame.pack_propagate(False)
+        # Status Box
+        status_box = tk.Frame(right_col, bg=COLORS["bg_panel"], padx=20, pady=20)
+        status_box.pack(fill="x", pady=(0, 20))
+        tk.Label(status_box, text="DECISION ENGINE", font=FONTS["sub"], bg=COLORS["bg_panel"],
+                 fg=COLORS["text_dim"]).pack(anchor="w")
+        self.lbl_status = tk.Label(status_box, text="READY", font=("Segoe UI", 32, "bold"), bg=COLORS["bg_panel"],
+                                   fg=COLORS["text_dim"])
+        self.lbl_status.pack(pady=10)
+        self.lbl_prob = tk.Label(status_box, text="Waiting for input...", font=FONTS["body"], bg=COLORS["bg_panel"],
+                                 fg="white")
+        self.lbl_prob.pack()
 
-        tk.Label(self.status_frame, text="DECISION STATUS", font=("Helvetica", 14, "bold"), bg=COLORS["bg_panel"],
-                 fg=COLORS["text_dim"]).pack(pady=(30, 10))
+        # Terminal Log
+        log_frame = tk.Frame(right_col, bg="black", bd=2, relief="sunken")
+        log_frame.pack(fill="both", expand=True)
+        tk.Label(log_frame, text="> SYSTEM_LOGS", bg="black", fg="#00ff00", font=("Consolas", 10)).pack(anchor="w",
+                                                                                                        padx=5)
 
-        self.lbl_status = tk.Label(self.status_frame, text="WAITING", font=("Helvetica", 30, "bold"),
-                                   bg=COLORS["bg_dark"], fg=COLORS["text_dim"], width=12, pady=15)
-        self.lbl_status.pack(pady=20)
-
-        # This label will hold the Bold Percentage
-        self.lbl_reason = tk.Label(self.status_frame, text="Ready for data...", font=FONT_BODY, bg=COLORS["bg_panel"],
-                                   fg=COLORS["text_light"], wraplength=280)
-        self.lbl_reason.pack(pady=10)
+        self.terminal = scrolledtext.ScrolledText(log_frame, bg="black", fg=COLORS["log_text"], font=("Consolas", 9),
+                                                  state='disabled')
+        self.terminal.pack(fill="both", expand=True)
+        self.log("System initialized.")
+        self.log("Waiting for user inputs...")
 
     # --- HELPERS ---
-    def add_row(self, row, l1, opt1, l2, opt2):
-        # Increased pady for spacing
-        tk.Label(self.input_grid, text=l1, bg=COLORS["bg_panel"], fg=COLORS["text_dim"],
-                 font=("Helvetica", 10, "bold")).grid(row=row, column=0, sticky="w", pady=12)
+    def create_group_label(self, parent, text):
+        tk.Label(parent, text=text, font=FONTS["sub"], bg=COLORS["bg_panel"], fg=COLORS["accent"]).pack(anchor="w",
+                                                                                                        pady=(5, 10))
 
+    def add_input(self, parent, row, l1, opt1, l2, opt2):
+        # Input 1
+        tk.Label(parent, text=l1, bg=COLORS["bg_panel"], fg="white", font=("Segoe UI", 10, "bold")).grid(row=row,
+                                                                                                         column=0,
+                                                                                                         sticky="w",
+                                                                                                         pady=5)
         if opt1:
-            # Using the big style we created
-            e1 = ttk.Combobox(self.input_grid, values=opt1, state="readonly", font=FONT_BODY, style="TCombobox")
-            e1.current(0)
+            e1 = ttk.Combobox(parent, values=opt1, state="readonly", font=FONTS["body"], style="TCombobox")
+            # e1.current(0)  <-- REMOVED DEFAULT SELECTION
         else:
-            e1 = tk.Entry(self.input_grid, font=FONT_BODY, relief="flat", bd=5)
-
-        e1.grid(row=row, column=1, padx=15, sticky="ew", ipady=4)  # ipady makes it taller
+            e1 = tk.Entry(parent, font=FONTS["body"], bg=COLORS["bg_input"], fg="white", insertbackground="white",
+                          relief="flat")
+        e1.grid(row=row, column=1, padx=10, sticky="ew", ipady=4)
         self.entries[l1] = e1
 
+        # Input 2
         if l2:
-            tk.Label(self.input_grid, text=l2, bg=COLORS["bg_panel"], fg=COLORS["text_dim"],
-                     font=("Helvetica", 10, "bold")).grid(row=row, column=2, sticky="w", pady=12)
+            tk.Label(parent, text=l2, bg=COLORS["bg_panel"], fg="white", font=("Segoe UI", 10, "bold")).grid(row=row,
+                                                                                                             column=2,
+                                                                                                             sticky="w",
+                                                                                                             pady=5)
             if opt2:
-                e2 = ttk.Combobox(self.input_grid, values=opt2, state="readonly", font=FONT_BODY, style="TCombobox")
-                e2.current(0)
+                e2 = ttk.Combobox(parent, values=opt2, state="readonly", font=FONTS["body"], style="TCombobox")
+                # e2.current(0) <-- REMOVED DEFAULT SELECTION
             else:
-                e2 = tk.Entry(self.input_grid, font=FONT_BODY, relief="flat", bd=5)
-
-            e2.grid(row=row, column=3, padx=15, sticky="ew", ipady=4)
+                e2 = tk.Entry(parent, font=FONTS["body"], bg=COLORS["bg_input"], fg="white", insertbackground="white",
+                              relief="flat")
+            e2.grid(row=row, column=3, padx=10, sticky="ew", ipady=4)
             self.entries[l2] = e2
 
-        self.input_grid.columnconfigure(1, weight=1)
-        self.input_grid.columnconfigure(3, weight=1)
+        parent.columnconfigure(1, weight=1)
+        parent.columnconfigure(3, weight=1)
 
     # --- LOGIC ---
     def run_logic(self):
+        self.log("-" * 30)
+        self.log("Initiating analysis...")
+
         try:
-            # 1. HARD RULES
-            income = float(self.entries["Applicant Income"].get())
-            coincome = float(self.entries["Co-Applicant Income"].get())
-            total = income + coincome
+            # 1. READ INPUTS (Check for emptiness first)
+            try:
+                inc_text = self.entries["Applicant Income"].get()
+                coinc_text = self.entries["Co-Applicant Income"].get()
 
-            if total < 4000:
-                self.lbl_status.config(text="REJECTED", fg=COLORS["danger"])
-                self.lbl_reason.config(text="REASON: Total income is below bank policy threshold ($4,000).",
-                                       font=FONT_BODY)
+                if not inc_text or not coinc_text:
+                    raise ValueError("Empty Fields")
+
+                inc = float(inc_text)
+                coinc = float(coinc_text)
+            except ValueError:
+                self.log("⚠️ ERROR: Missing or invalid financial data.")
+                messagebox.showwarning("Incomplete Data", "Please fill in all financial fields with numbers.")
                 return
 
-            # 2. AI PREDICTION
+            total = inc + coinc
+            self.log(f"Processing Income: ${total}")
+
+            # 2. HARD RULES
+            if total < 2500:
+                self.log("⚠️ REJECTED: Income < $2500 threshold.")
+                self.update_status("REJECTED", COLORS["danger"], "Reason: Low Income")
+                return
+
             if not self.model:
-                messagebox.showerror("Error", "Model not loaded.")
+                self.log("❌ ERROR: AI Model missing.")
                 return
 
-            # Prepare Data
-            val_gender = 1 if self.entries["Gender"].get() == "Male" else 0
-            val_married = 1 if self.entries["Married"].get() == "Yes" else 0
-            dep = self.entries["Dependents"].get()
-            val_dep = 3 if dep == "3+" else int(dep)
-            val_edu = 1 if self.entries["Education"].get() == "Graduate" else 0
-            val_self = 1 if self.entries["Self Employed"].get() == "Yes" else 0
-            val_credit = 1.0 if "1.0" in self.entries["Credit History"].get() else 0.0
-            val_loan = float(self.entries["Loan Amount"].get())
-            val_term = float(self.entries["Loan Term (Months)"].get())
-            area = self.entries["Property Area"].get()
-            val_r = 1 if area == "Rural" else 0
-            val_s = 1 if area == "Semiurban" else 0
-            val_u = 1 if area == "Urban" else 0
+            # 3. PREPARE DATA (Handle empty dropdowns safely)
+            try:
+                gender = 1 if self.entries["Gender"].get() == "Male" else 0
+                married = 1 if self.entries["Married"].get() == "Yes" else 0
 
+                dep_raw = self.entries["Dependents"].get()
+                if not dep_raw: raise ValueError("Dropdown Empty")
+                dep = 3 if dep_raw == "3+" else int(dep_raw)
+
+                edu = 1 if self.entries["Education"].get() == "Graduate" else 0
+                self_emp = 1 if self.entries["Self Employed"].get() == "Yes" else 0
+
+                credit_txt = self.entries["Credit History"].get()
+                if not credit_txt: raise ValueError("Dropdown Empty")
+                credit = 1.0 if "Good" in credit_txt else 0.0
+
+                area_txt = self.entries["Property Area"].get()
+                if not area_txt: raise ValueError("Dropdown Empty")
+                area_r = 1 if area_txt == "Rural" else 0
+                area_s = 1 if area_txt == "Semiurban" else 0
+                area_u = 1 if area_txt == "Urban" else 0
+
+                loan = float(self.entries["Loan Amount"].get())
+                term = float(self.entries["Loan Term (Months)"].get())
+
+            except ValueError:
+                self.log("⚠️ ERROR: Missing dropdown selections.")
+                messagebox.showwarning("Incomplete Data", "Please select options for all dropdowns.")
+                return
+
+            # 4. PREDICT
             df = pd.DataFrame(
-                [[val_gender, val_married, val_dep, val_edu, val_self, income, coincome, val_loan, val_term, val_credit,
-                  val_r, val_s, val_u]],
+                [[gender, married, dep, edu, self_emp, inc, coinc, loan, term, credit, area_r, area_s, area_u]],
                 columns=['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'ApplicantIncome',
                          'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History', 'Property_Area_Rural',
                          'Property_Area_Semiurban', 'Property_Area_Urban'])
 
-            # Predict
+            self.log("Querying AI Model...")
             scaled = self.scaler.transform(df)
-            pred = self.model.predict(scaled)
+            pred = self.model.predict(scaled)[0]
             prob = self.model.predict_proba(scaled)[0][1]
 
-            if pred[0] == 1:
-                self.lbl_status.config(text="APPROVED", fg=COLORS["success"])
-                # BOLD RESULT HERE
-                self.lbl_reason.config(text=f"Confidence:\n{prob * 100:.1f}%", font=FONT_RESULT)
-            else:
-                self.lbl_status.config(text="REJECTED", fg=COLORS["danger"])
-                # BOLD RESULT HERE
-                self.lbl_reason.config(text=f"Confidence:\n{(1 - prob) * 100:.1f}%", font=FONT_RESULT)
+            self.log(f"AI Calculation Complete.")
+            self.log(f"Probability Score: {prob:.4f}")
 
-        except ValueError:
-            messagebox.showerror("Error", "Check your number inputs.")
+            if pred == 1:
+                self.log("✅ RESULT: APPROVED")
+                self.update_status("APPROVED", COLORS["success"], f"Confidence: {prob * 100:.1f}%")
+            else:
+                self.log("⛔ RESULT: REJECTED")
+                self.update_status("REJECTED", COLORS["danger"], f"Risk Level: {(1 - prob) * 100:.1f}%")
+
+        except Exception as e:
+            self.log(f"❌ Error: {str(e)}")
+            messagebox.showerror("System Error", str(e))
+
+    def update_status(self, text, color, subtext):
+        self.lbl_status.config(text=text, fg=color)
+        self.lbl_prob.config(text=subtext)
 
     def exit_app(self, e=None):
         self.destroy()
